@@ -1,4 +1,4 @@
-# Arte Marca
+# Laravel + React.js
 
 ## Developer enviroment
 
