@@ -1,0 +1,76 @@
+#!/bin/bash
+
+DB_CONTAINER=arte-marca-db-1
+APP_CONTAINER=arte-marca-app-1
+APP_IMAGE=digitalrootlabs/arte-marca
+
+GREEN_COLOR=$(tput setaf 2)
+RESET_COLORS=$(tput sgr0)
+
+function print () {
+    echo "✅ ${GREEN_COLOR}$1${RESET_COLORS}"
+}
+
+set -e
+
+uid=$(id -u)
+gid=$(id -g)
+
+printf "Setting up developer enviroment ...\n"
+
+cp .env.example .env
+print ".env created"
+
+cp docker-compose.override-template.yaml docker-compose.override.yaml
+print "docker-compose.override.yaml created"
+
+sed -i "s/UID=[0-9]\+/UID=$uid/g" docker-compose.override.yaml
+sed -i "s/GID=[0-9]\+/GID=$gid/g" docker-compose.override.yaml
+print "UID and GID written on docker-compose.override.yaml"
+
+docker compose down --volumes
+print "Put down previous containers"
+
+if docker images $APP_IMAGE:local | awk "NR>1 {print \$1}" | grep -q "$APP_IMAGE"; then
+    docker rmi $APP_IMAGE:local
+    print "Previous application image removed"
+else
+    print "No previous application image found"
+fi
+
+docker builder prune --all --force
+print "Cache layers removed"
+
+docker compose up -d --build
+print "Image built and container is running"
+
+until docker exec -i $DB_CONTAINER sh -c "psql -U \$POSTGRES_USER -c '\l'" 2>/dev/null; do
+  echo "Postgres is unavailable - sleeping..."
+  sleep 2
+done
+print "Database UNIX socket is listenning"
+
+docker exec -i $DB_CONTAINER sh -c "
+psql -U \$POSTGRES_USER <<EOSQL
+CREATE USER \$DB_USERNAME WITH PASSWORD '\$DB_PASSWORD';
+CREATE DATABASE \$DB_DATABASE;
+GRANT ALL PRIVILEGES ON DATABASE \$DB_DATABASE TO \$DB_USERNAME;
+EOSQL
+"
+print "Database created"
+
+until docker cp $APP_CONTAINER:/var/www/html/vendor vendor  2>/dev/null; do
+    echo "vendor is still being created - sleeping..."
+    sleep 2
+done
+print "vendor copied from container"
+
+until docker cp $APP_CONTAINER:/var/www/html/node_modules node_modules 2>/dev/null; do
+    echo "node_modules is still being created - sleeping..."
+    sleep 2
+done
+print "node_modules copied from container"
+
+printf "Done. Application is ready on http://localhost:9000\n"
+
+echo "Log in: admin@artemarca.com (password: <value set on APP_ADMIN_PASSWORD>)"

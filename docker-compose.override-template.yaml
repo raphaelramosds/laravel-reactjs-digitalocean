@@ -1,0 +1,22 @@
+services:
+  app:
+    build:
+      args:
+        # Change these accordingly to your system
+        - UID=1000
+        - GID=1000
+    ports:
+      - "9000:8080"
+      - "5173:5173"
+    volumes:
+      - ./app:/var/www/html/app
+      - ./config:/var/www/html/config
+      - ./resources:/var/www/html/resources
+      - ./routes:/var/www/html/routes
+      - ./storage:/var/www/html/storage
+      - ./tests:/var/www/html/tests
+      - ./database:/var/www/html/database
+      - ./public:/var/www/html/public
+  db:
+    ports:
+      - "5432:5432"

@@ -1,0 +1,21 @@
+name: artemarca
+services:
+- name: php
+  http_port: 8080
+  internal_ports:
+    - 5173
+  image: 
+    registry_type: DOCR
+    registry: ${DIGITALOCEAN_REGISTRY}
+    repository: arte-marca
+    digest: ${SAMPLE_DIGEST}
+  envs:
+    - key: APP_ENV
+      value: production
+      type: GENERAL
+    - key: APP_KEY
+      value: ${APP_KEY}
+      type: SECRET
+    - key: DB_CONNECTION
+      value: sqlite
+      type: GENERAL
